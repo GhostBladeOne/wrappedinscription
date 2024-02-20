@@ -81,6 +81,11 @@ describe('WrappedInscription',  async ()=> {
             expect(beforeAmountinscription).to.eq(1000000)
             expect(beforeContractAmountinscription).to.eq(0)
 
+               const len1 = await  inscription.getUserRedeemsLength(bob.address);
+
+                 expect(len1).to.eq(0);
+
+
 
 
           
