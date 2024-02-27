@@ -69,21 +69,21 @@ describe('WrappedInscription',  async ()=> {
 
           expect(len).to.eq(1);
 
-           await  time.increase(459300);
+          await  time.increase(459300);
 
           
-           await inscription.finalizeRedeem(0);
+          await inscription.finalizeRedeem(0);
 
-            const  beforeAmountinscription = await token.balanceOf(bob.address);
+          const  beforeAmountinscription = await token.balanceOf(bob.address);
           const  beforeContractAmountinscription = await token.balanceOf(inscription.address);
 
          
-            expect(beforeAmountinscription).to.eq(1000000)
-            expect(beforeContractAmountinscription).to.eq(0)
+          expect(beforeAmountinscription).to.eq(1000000)
+          expect(beforeContractAmountinscription).to.eq(0)
 
-               const len1 = await  inscription.getUserRedeemsLength(bob.address);
+          const len1 = await  inscription.getUserRedeemsLength(bob.address);
 
-                 expect(len1).to.eq(0);
+          expect(len1).to.eq(0);
 
 
 
