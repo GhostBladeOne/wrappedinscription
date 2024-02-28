@@ -14,7 +14,7 @@ contract StakeInscription is Ownable, ReentrancyGuard {
     }
 
     bytes32 public tickHash;
-    uint256 public RedeemDuration = 3 days;
+    uint256 public minRedeemDuration = 3 days;
 
     uint256 private _totalSupply;
 
@@ -25,15 +25,19 @@ contract StakeInscription is Ownable, ReentrancyGuard {
 
     event BurnInscription(bytes32 tickHash, uint256 amount);
 
-    event WithdrawInscription(
-        address indexed redeemer,
-        // bytes32 txHash,
+    event TransferInscription(
+        address indexed to,
+        bytes32 tickHash,
         uint256 amount
     );
 
-    event Redeem(address indexed userAddress, uint256 amount, uint256 duration);
-    event FinalizeRedeem(address indexed userAddress, uint256 amount);
-    event CancelRedeem(address indexed userAddress, uint256 amount);
+    event Claim(address indexed userAddress, uint256 amount, uint256 duration);
+    event FinalizeRedeem(
+        address indexed userAddress,
+        uint256 amount,
+        uint256 endTime
+    );
+    event CancelClaim(address indexed userAddress, uint256 amount);
 
     modifier validateRedeem(address userAddress, uint256 redeemIndex) {
         require(
@@ -65,10 +69,10 @@ contract StakeInscription is Ownable, ReentrancyGuard {
     }
 
     function setMaxRedeemDuration(uint256 _duration) public onlyOwner {
-        RedeemDuration = _duration;
+        minRedeemDuration = _duration;
     }
 
-    function redeem(uint256 _amount, uint256 duration) external nonReentrant {
+    function claim(uint256 _amount) external nonReentrant {
         require(
             tickHash != bytes32(0),
             "tickHash has not been initialized yet"
@@ -78,42 +82,39 @@ contract StakeInscription is Ownable, ReentrancyGuard {
             _amount <= _balances[msg.sender],
             "redeem: Amount in excess of balance"
         );
-        require(duration >= RedeemDuration, "redeem: duration too low");
-
         _balances[msg.sender] = _balances[msg.sender] - _amount;
 
         userRedeems[msg.sender].push(
-            RedeemInfo(_amount, block.timestamp + duration)
+            RedeemInfo(_amount, block.timestamp + minRedeemDuration)
         );
 
-        emit Redeem(msg.sender, _amount, duration);
+        emit Claim(msg.sender, _amount, block.timestamp + minRedeemDuration);
     }
 
-    function finalizeRedeem(
+    function redeem(
         uint256 redeemIndex
     ) external nonReentrant validateRedeem(msg.sender, redeemIndex) {
         RedeemInfo storage _redeem = userRedeems[msg.sender][redeemIndex];
-        // require(
-        //     block.timestamp >= _redeem.endTime,
-        //     "finalizeRedeem: vesting duration has not ended yet"
-        // );
+        require(
+            block.timestamp >= _redeem.endTime,
+            "finalizeRedeem: vesting duration has not ended yet"
+        );
 
         _totalSupply -= _redeem.amount;
 
         _deleteRedeemEntry(redeemIndex);
-        emit FinalizeRedeem(msg.sender, _redeem.amount);
-        emit BurnInscription(tickHash, _redeem.amount);
-        emit WithdrawInscription(msg.sender, _redeem.amount);
+        emit FinalizeRedeem(msg.sender, _redeem.amount, _redeem.endTime);
+        emit TransferInscription(msg.sender, tickHash, _redeem.amount);
     }
 
-    function cancelRedeem(
+    function cancelClaim(
         uint256 redeemIndex
     ) external nonReentrant validateRedeem(msg.sender, redeemIndex) {
         RedeemInfo storage _redeem = userRedeems[msg.sender][redeemIndex];
 
         _balances[msg.sender] = _balances[msg.sender] + _redeem.amount;
 
-        emit CancelRedeem(msg.sender, _redeem.amount);
+        emit CancelClaim(msg.sender, _redeem.amount);
         _deleteRedeemEntry(redeemIndex);
     }
 
