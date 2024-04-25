@@ -1,21 +1,23 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "./Operatable.sol";
 
-// Uncomment this line to use console.log
-// import "hardhat/console.sol";
-
-contract WrappedInscription is Ownable {
+contract WrappedInscription is Operatable {
     IERC20 public token;
-    bytes32 public tickHash;
-    uint8 public decimals;
+    string public tickHash;
+    bool public limiter = true;
+
+    bool public forbidden;
+    uint256 public maxLimit = 100 * 1e18;
+
+    mapping(address => bool) public mintUser;
 
     mapping(address => uint256) private _balances;
 
-    event MintInscription(address indexed to, bytes32 tickHash, uint256 amount);
+    event MintInscription(address indexed to, string tickHash, uint256 amount);
 
-    event BurnInscription(bytes32 tickHash, uint256 amount);
+    event BurnInscription(string tickHash, uint256 amount);
 
     event WithdrawInscription(
         address indexed redeemer,
@@ -23,38 +25,76 @@ contract WrappedInscription is Ownable {
         uint256 amount
     );
 
-    constructor(
-        IERC20 _token,
-        bytes32 _tickHash,
-        uint8 _decimals
-    ) Ownable(msg.sender) {
+    constructor(IERC20 _token, string memory _tickHash) Ownable(msg.sender) {
         token = _token;
         tickHash = _tickHash;
-        decimals = _decimals;
     }
 
     function balanceOf(address account) external view returns (uint256) {
         return _balances[account];
     }
 
-    function approve(address teller, uint256 amount) public onlyOwner {
+    function approve(address teller, uint256 amount) public onlyOperator {
         _balances[teller] = amount;
     }
 
-    function mint(uint256 amount) public {
+    function mint(string calldata _tickHash, uint256 amount) public {
         require(
-            tickHash != bytes32(0),
+            compareStrings(_tickHash, tickHash),
             "tickHash has not been initialized yet"
         );
+
+        if (limiter) {
+            require(!mintUser[msg.sender], "Prohibition of convertibility");
+            require(amount <= maxLimit, "maxLimit");
+        }
+        mintUser[msg.sender] = true;
         token.transferFrom(msg.sender, address(this), amount);
         emit MintInscription(msg.sender, tickHash, amount);
     }
 
-    function withdraw(address redeemer, uint256 amount) public {
-        require(_balances[msg.sender] >= amount, "Not enough balance");
-        token.transfer(redeemer, amount);
-        _balances[msg.sender] = _balances[msg.sender] - amount;
+    function withdraw(uint256 amount) public {
+        address user = msg.sender;
+        require(!forbidden, "forbidden");
+        require(_balances[user] >= amount, "Not enough balance");
+        if (limiter) {
+            require(amount <= maxLimit, "maxLimit");
+        }
+        token.transfer(user, amount);
+        _balances[user] = _balances[user] - amount;
         emit BurnInscription(tickHash, amount);
-        emit WithdrawInscription(redeemer, amount);
+        emit WithdrawInscription(user, amount);
+    }
+
+    function withdrawToken(address _token, uint256 amount) public onlyOwner {
+        IERC20(_token).transfer(msg.sender, amount);
+    }
+
+    function setMaxLimit(uint256 _amount) public onlyOwner {
+        maxLimit = _amount;
+    }
+
+    function setLimiter(bool _limiter) public onlyOwner {
+        limiter = _limiter;
+    }
+
+    function setForbidden(bool _forbidden) public onlyOwner {
+        forbidden = _forbidden;
+    }
+
+    function setMintUser(
+        address[] memory _users,
+        bool _status
+    ) public onlyOwner {
+        for (uint i = 0; i < _users.length; i++) {
+            mintUser[_users[i]] = _status;
+        }
+    }
+
+    function compareStrings(
+        string memory a,
+        string memory b
+    ) public pure returns (bool) {
+        return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));
     }
 }
