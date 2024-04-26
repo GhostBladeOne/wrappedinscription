@@ -35,7 +35,7 @@ contract WrappedInscription is Operatable {
     }
 
     function approve(address teller, uint256 amount) public onlyOperator {
-        _balances[teller] = amount;
+        _balances[teller] += amount;
     }
 
     function mint(string calldata _tickHash, uint256 amount) public {
