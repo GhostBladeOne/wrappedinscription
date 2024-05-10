@@ -38,7 +38,7 @@ contract WrappedInscription is Operatable {
         _balances[teller] += amount;
     }
 
-    function mint(string calldata _tickHash, uint256 amount) public {
+    function warp(string calldata _tickHash, uint256 amount) public {
         require(
             compareStrings(_tickHash, tickHash),
             "tickHash has not been initialized yet"
@@ -53,15 +53,17 @@ contract WrappedInscription is Operatable {
         emit MintInscription(msg.sender, tickHash, amount);
     }
 
-    function withdraw(uint256 amount) public {
+    function unwarp(string calldata _tickHash, uint256 amount) public {
         address user = msg.sender;
         require(!forbidden, "forbidden");
+        require(
+            compareStrings(_tickHash, tickHash),
+            "tickHash has not been initialized yet"
+        );
         require(_balances[user] >= amount, "Not enough balance");
         if (limiter) {
             require(amount <= maxLimit, "maxLimit");
         }
-        token.transfer(user, amount);
-        _balances[user] = _balances[user] - amount;
         emit BurnInscription(tickHash, amount);
         emit WithdrawInscription(user, amount);
     }
