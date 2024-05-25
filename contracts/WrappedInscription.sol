@@ -25,6 +25,8 @@ contract WrappedInscription is Operatable {
         uint256 amount
     );
 
+    receive() external payable {}
+
     constructor(IERC20 _token, string memory _tickHash) Ownable(msg.sender) {
         token = _token;
         tickHash = _tickHash;
@@ -60,7 +62,7 @@ contract WrappedInscription is Operatable {
             compareStrings(_tickHash, tickHash),
             "tickHash has not been initialized yet"
         );
-        require(_balances[user] >= amount, "Not enough balance");
+        // require(_balances[user] >= amount, "Not enough balance");
         if (limiter) {
             require(amount <= maxLimit, "maxLimit");
         }
@@ -70,6 +72,18 @@ contract WrappedInscription is Operatable {
 
     function withdrawToken(address _token, uint256 amount) public onlyOwner {
         IERC20(_token).transfer(msg.sender, amount);
+    }
+
+    function bfansToFans(string calldata _tickHash) public onlyOwner {}
+
+    function multisend(
+        address[] memory _user,
+        uint256[] memory _value
+    ) public onlyOwner {
+        require(_user.length == _value.length, "arg error");
+        for (uint i = 0; i < _user.length; i++) {
+            IERC20(token).transfer(_user[i], _value[i]);
+        }
     }
 
     function setMaxLimit(uint256 _amount) public onlyOwner {
